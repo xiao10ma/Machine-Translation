@@ -9,6 +9,9 @@ pip install -r requirements.txt
 
 ## How to run?
 
+### Dataset download
+链接: https://pan.baidu.com/s/11UHNkqyhvvZTOfvob1tSyw?pwd=5u3k 提取码: 5u3k
+
 Move the data in to the data directory, it looks like this:
 ```bash
 data
