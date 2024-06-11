@@ -1,13 +1,12 @@
 import os
 import torch
-import numpy as np
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from net_utils import save_model, load_model
 from torchmetrics.text.bleu import BLEUScore
 from network import LSTMseq2seq, GRUseq2seq
 import enzh_dataset
-# from net_utils import save_model, load_model
+from net_utils import save_model, load_model
 import argparse
 from tqdm import tqdm
 import uuid
@@ -18,10 +17,10 @@ except ImportError:
     TENSORBOARD_FOUND = False
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-EPOCH = 400
+EPOCH = 300
 BATCH_SIZE = 200
 LR = 0.000001
-MODEL = 'GRU'  # 'LSTM'
+MODEL = 'GRU'  # 'GRU' 'LSTM'
 
 def collate_fn(batch):
     en_sentences, zh_sentences = zip(*batch)
@@ -77,8 +76,9 @@ def train(tb_writer, args):
     iter_start = torch.cuda.Event(enable_timing = True)
     iter_end = torch.cuda.Event(enable_timing = True)
     
-    begin_epoch, global_step = 0, 0
+    begin_epoch, global_step = load_model(model, optimizer, args.model_path)
 
+    interact(model, dataset)
 
     for epoch in tqdm(range(begin_epoch, EPOCH)):
         for iter, batch in enumerate(train_loader):
@@ -132,14 +132,30 @@ def training_report(tb_writer, iter, loss, elapsed, bleu):
         # tb_writer.add_scalar('iter_time' + '  lr: {}  epoch: {}'.format(LR, EPOCH), elapsed, iter)
         tb_writer.add_scalar('bleu' + '  lr: {}  epoch: {}'.format(LR, EPOCH), bleu, iter)
 
+def interact(model, dataset):
+    while(True):
+        en_sen = input('请输入你想翻译的英文句子：')    # What will happen in Paris
+        en_tokens = enzh_dataset.tokenize_en(en_sen)
+        en_res = [dataset.en_vocab[token] for token in en_tokens if token in dataset.en_vocab]
+        en_sen = torch.tensor(en_res, dtype=torch.long, device=device)
+        en_sen = en_sen[None, ...].expand(200, -1)
+        zh_sen = torch.zeros((200, 1), dtype=torch.long, device=device) # 初始化为什么无所谓，因为不会被输入进decoder
+        pred = model('test', en_sen, zh_sen, 0.0)
+
+        pred_indices = torch.argmax(pred, dim=1).reshape(1, -1)
+        pred_tokens = [[dataset.zh_idx2token[idx.item()] for idx in sentence] for sentence in pred_indices]
+
+        pred_strs = [' '.join(sentence) for sentence in pred_tokens[0]]
+        print(pred_strs)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Machine Translation')
-    parser.add_argument('-r', '--record_path', default='./output/{}_200d'.format(MODEL), type=str)
-    parser.add_argument('--embedded_size', default=200, type=int)
-    parser.add_argument('--hidden_size', default=100, type=int)
+    parser.add_argument('-r', '--record_path', default='./output/{}'.format(MODEL), type=str)
+    parser.add_argument('--embedded_size', default=100, type=int)
+    parser.add_argument('--hidden_size', default=50, type=int)
     parser.add_argument('--save_ep', default=50, type=int)
     parser.add_argument('--save_latest_ep', default=10, type=int)
-    parser.add_argument('-m', '--model_path', default='./trained_model/{}_200d'.format(MODEL), type=str)
+    parser.add_argument('-m', '--model_path', default='./trained_model/{}'.format(MODEL), type=str)
     args = parser.parse_args()
 
     tb_writer = prepare_output_and_logger(args)

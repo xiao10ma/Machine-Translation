@@ -46,7 +46,7 @@ class GRUseq2seq(torch.nn.Module):
 
         self.h0 = torch.randn((2, self.batch_size, hidden_size), device=device)
 
-    def forward(self, mode, en_sen, zh_sen, teacher_forcing_ratio=1.0, k=2):
+    def forward(self, mode, en_sen, zh_sen, teacher_forcing_ratio=0.5, k=2):
         emebedded_enseq = self.en_embedder(en_sen)
         en_output, hidden = self.encoder(emebedded_enseq, self.h0)
 
@@ -147,7 +147,7 @@ class LSTMseq2seq(torch.nn.Module):
         self.h0 = torch.randn((2, self.batch_size, hidden_size), device=device)
         self.c0 = torch.randn((2, self.batch_size, hidden_size), device=device)
 
-    def forward(self, mode, en_sen, zh_sen, teacher_forcing_ratio=1.0):
+    def forward(self, mode, en_sen, zh_sen, teacher_forcing_ratio=0.5):
         emebedded_enseq = self.en_embedder(en_sen)
         en_output, (hidden, cell) = self.encoder(emebedded_enseq, (self.h0, self.c0))
 
